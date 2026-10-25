@@ -1,0 +1,10 @@
+import {Eye,EyeOff} from 'lucide-react'
+import {useState} from 'react'
+import {Navigate,useNavigate} from 'react-router-dom'
+import {Button} from '@/components/ui/button.jsx'
+import {Input} from '@/components/ui/input.jsx'
+import {Label} from '@/components/ui/label.jsx'
+import AuthLayout from '@/layouts/AuthLayout.jsx'
+import {useAuth} from '@/context/AuthContext.jsx'
+import {firstAccessiblePath} from '@/config/navigation.js'
+export default function LoginPage(){const {user,loading,login}=useAuth();const navigate=useNavigate();const [show,setShow]=useState(false),[busy,setBusy]=useState(false),[error,setError]=useState('');if(!loading&&user)return <Navigate to={user.mustChangePassword?'/setup-password':firstAccessiblePath(user)} replace/>;const submit=async(e)=>{e.preventDefault();setBusy(true);setError('');const fd=new FormData(e.currentTarget);try{const r=await login({email:fd.get('email'),password:fd.get('password')});navigate(r.data.requiresPasswordChange?'/setup-password':firstAccessiblePath(r.data.user),{replace:true})}catch(err){setError(err.message)}finally{setBusy(false)}};return <AuthLayout><h1 className="text-2xl font-bold tracking-tight">Admin Login</h1><p className="mt-1 text-sm text-muted-foreground">Sign in to the Trans Roadway Logistics Inc. Management System.</p><form onSubmit={submit} className="mt-8 space-y-5"><label className="space-y-2"><Label>Email Address</Label><Input name="email" type="email" autoComplete="username" required placeholder="name@company.com"/></label><label className="space-y-2"><Label>Password</Label><div className="relative"><Input name="password" type={show?'text':'password'} autoComplete="current-password" required className="pr-11"/><button type="button" onClick={()=>setShow(v=>!v)} className="absolute right-2 top-1/2 -translate-y-1/2 p-2">{show?<EyeOff className="h-4 w-4"/>:<Eye className="h-4 w-4"/>}</button></div></label>{error&&<div className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>}<Button className="w-full" size="lg" disabled={busy}>{busy?'Signing in...':'Login'}</Button></form></AuthLayout>}
