@@ -1,17 +1,4 @@
-import PageContainer from "@/components/layout/PageContainer.jsx"
-import PageHeader from "@/components/layout/PageHeader.jsx"
-
-function PaymentHistoryPage() {
-  return (
-    <PageContainer>
-      <PageHeader
-        title="Payment History"
-        description="Review past payments"
-      />
-
-      <div className="min-h-[400px]" />
-    </PageContainer>
-  )
-}
-
-export default PaymentHistoryPage
+// Keep the existing navigation URL while using the live invoice and
+// payment verification module instead of displaying an empty placeholder.
+import InvoiceReviewPage from './InvoiceReviewPage.jsx';
+export default function PaymentHistoryPage(){return <InvoiceReviewPage/>;}

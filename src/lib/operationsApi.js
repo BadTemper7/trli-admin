@@ -10,12 +10,11 @@ export const operationsApi = {
     list: (params) => adminRequest(`/admin/operations/pre-advice${query(params)}`),
     get: (id) => adminRequest(`/admin/operations/pre-advice/${id}`),
     approve: (id, note = '') => adminRequest(`/admin/operations/pre-advice/${id}/approve`, { method: 'POST', body: JSON.stringify({ note }) }),
+    reject: (id, reason) => adminRequest(`/admin/operations/pre-advice/${id}/reject`, {method:'POST',body:JSON.stringify({reason})}),
   },
   gateIn: {
     list: (params) => adminRequest(`/admin/operations/gate-in${query(params)}`),
     inspect: (id, data) => adminRequest(`/admin/operations/gate-in/${id}/inspection`, { method: 'POST', body: JSON.stringify(data) }),
-    payment: (id, data) => adminRequest(`/admin/operations/gate-in/${id}/payment`, { method: 'POST', body: JSON.stringify(data) }),
-    cancelPayment: (id, data = {}) => adminRequest(`/admin/operations/gate-in/${id}/payment/cancel`, { method: 'POST', body: JSON.stringify(data) }),
     process: (id, data = {}) => adminRequest(`/admin/operations/gate-in/${id}/process`, { method: 'POST', body: JSON.stringify(data) }),
   },
   inventory: {
@@ -24,9 +23,6 @@ export const operationsApi = {
   },
   gateOut: {
     list: (params) => adminRequest(`/admin/operations/gate-out${query(params)}`),
-    request: (id, data) => adminRequest(`/admin/operations/gate-out/${id}/request`, { method: 'POST', body: JSON.stringify(data) }),
-    payment: (id, data) => adminRequest(`/admin/operations/gate-out/${id}/payment`, { method: 'POST', body: JSON.stringify(data) }),
-    approve: (id, data = {}) => adminRequest(`/admin/operations/gate-out/${id}/approve`, { method: 'POST', body: JSON.stringify(data) }),
   },
   release: {
     list: (params) => adminRequest(`/admin/operations/release${query(params)}`),

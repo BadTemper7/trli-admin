@@ -1,33 +1,43 @@
-import { useState } from 'react'
-import { CalendarClock, CreditCard, LogOut } from 'lucide-react'
-import PageContainer from '@/components/layout/PageContainer.jsx'
-import PageHeader from '@/components/layout/PageHeader.jsx'
-import OperationDrawer from '@/components/operations/OperationDrawer.jsx'
-import OperationsTable from '@/components/operations/OperationsTable.jsx'
-import { DetailGrid } from '@/components/operations/OperationDetails.jsx'
-import { formatMoney, OperationStatus } from '@/components/operations/OperationStatus.jsx'
-import HourlySchedulePicker from '@/components/ui/hourly-schedule-picker.jsx'
-import { Button } from '@/components/ui/button.jsx'
-import { Input } from '@/components/ui/input.jsx'
-import PaymentMethodSelect from '@/components/operations/PaymentMethodSelect.jsx'
-import { operationsApi } from '@/lib/operationsApi.js'
-import { useAuth } from '@/context/AuthContext.jsx'
-import { MODULES, ACTIONS } from '@/constants/permissions.js'
-import { usePagedOperationsList } from '@/hooks/usePagedOperationsList.js'
+import {useEffect,useState} from 'react';
+import PageContainer from '@/components/layout/PageContainer.jsx';
+import PageHeader from '@/components/layout/PageHeader.jsx';
+import OperationDrawer from '@/components/operations/OperationDrawer.jsx';
+import OperationsTable from '@/components/operations/OperationsTable.jsx';
+import {DetailGrid} from '@/components/operations/OperationDetails.jsx';
+import {Button} from '@/components/ui/button.jsx';
+import {operationsApi} from '@/lib/operationsApi.js';
+import {adminRequest} from '@/lib/adminApi.js';
+import {openAdminFile} from '@/lib/adminFiles.js';
+import {usePagedOperationsList} from '@/hooks/usePagedOperationsList.js';
 
-const GATE_OUT_EVENTS = ['gate-out:updated', 'gate-out:approved', 'storage:container-assigned', 'gate-out:queue-invalidated']
-
-function GateOutPage() {
-  const { rows, setRows, search, setSearch, setPage, pagination, loading, error, setError, load } = usePagedOperationsList(operationsApi.gateOut.list, GATE_OUT_EVENTS)
-  const [selected,setSelected]=useState(null),[schedule,setSchedule]=useState({date:'',time:'',truckPlateNumber:'',driverName:'',remarks:''}),[payment,setPayment]=useState({referenceNumber:'',method:'',amountSubmitted:''}),[busy,setBusy]=useState(false)
-  const { can }=useAuth()
-  const open=r=>{setSelected(r);setSchedule({date:r.gateOut?.scheduledDate||'',time:r.gateOut?.scheduledTime||'',truckPlateNumber:r.gateOut?.truckPlateNumber||r.truckPlateNumber||'',driverName:r.gateOut?.driverName||r.driverName||'',remarks:r.gateOut?.remarks||''});setPayment({referenceNumber:'',method:'',amountSubmitted:String(r.gateOutCharges?.total||'')})}
-  const request=async()=>{setBusy(true);try{const r=await operationsApi.gateOut.request(selected.id,{scheduledDate:schedule.date,scheduledTime:schedule.time,truckPlateNumber:schedule.truckPlateNumber,driverName:schedule.driverName,remarks:schedule.remarks});const next={...r.data,gateOutCharges:selected.gateOutCharges};setSelected(next);setRows(c=>c.map(x=>x.id===next.id?next:x))}catch(e){setError(e.message)}finally{setBusy(false)}}
-  const submitPayment=async()=>{setBusy(true);try{const total=selected.gateOutCharges?.total||0;const r=await operationsApi.gateOut.payment(selected.id,{...payment,amountSubmitted:payment.amountSubmitted||total});const next={...r.data,gateOutCharges:selected.gateOutCharges};setSelected(next);setRows(c=>c.map(x=>x.id===next.id?next:x))}catch(e){setError(e.message)}finally{setBusy(false)}}
-  const approve=async()=>{setBusy(true);try{const r=await operationsApi.gateOut.approve(selected.id);setSelected(r.data);setRows(c=>c.map(x=>x.id===r.data.id?r.data:x))}catch(e){setError(e.message)}finally{setBusy(false)}}
-  const total=selected?.gateOutCharges?.total||0; const paymentDone=Boolean(selected?.gateOut?.payment?.submittedAt)||total===0
-  return <PageContainer><PageHeader title="Gate-out" description="Schedule Gate-out, collect applicable charges, approve departure, and move containers to release." />{error&&<ErrorBox text={error}/>}<OperationsTable rows={rows} search={search} onSearch={setSearch} onSelect={open} loading={loading} pagination={pagination} onPage={setPage} empty="No stored containers are ready for Gate-out processing." extraColumns={{header:<th className="px-5 py-3">Gate-out Due</th>,cell:r=><td className="px-5 py-4 font-semibold">{formatMoney(r.gateOutCharges?.total)}</td>}}/>
-  <OperationDrawer open={!!selected} title="Gate-out Processing" subtitle={selected?.bookingReference} onClose={()=>setSelected(null)}>{selected&&<div className="space-y-7"><div className="flex items-center justify-between"><OperationStatus stage={selected.workflowStage}/><b>{formatMoney(total)}</b></div><DetailGrid item={selected}/>{selected.workflowStage==='STORAGE'&&can(MODULES.GATE_OUT,ACTIONS.PROCESS)&&<section className="space-y-4 rounded-2xl border border-border p-4"><div className="flex items-center gap-2"><CalendarClock size={18} className="text-primary"/><h3 className="font-semibold">Request Gate-out</h3></div><HourlySchedulePicker date={schedule.date} time={schedule.time} onDateChange={date=>setSchedule({...schedule,date,time:''})} onTimeChange={time=>setSchedule({...schedule,time})} dateLabel="Gate-out Date" timeLabel="Gate-out Time" required/><div className="grid grid-cols-2 gap-3"><Input placeholder="Truck plate" value={schedule.truckPlateNumber} onChange={e=>setSchedule({...schedule,truckPlateNumber:e.target.value})}/><Input placeholder="Driver name" value={schedule.driverName} onChange={e=>setSchedule({...schedule,driverName:e.target.value})}/></div><Button className="w-full" disabled={busy||!schedule.date||!schedule.time} onClick={request}><LogOut size={17}/>Request Gate-out</Button></section>}{['GATE_OUT_PAYMENT_PENDING','GATE_OUT_PAYMENT_SUBMITTED'].includes(selected.workflowStage)&&<section className="rounded-2xl border border-border p-4"><div className="flex items-center gap-2"><CreditCard size={18} className="text-primary"/><h3 className="font-semibold">Gate-out Payment</h3></div><div className="mt-3 space-y-2 text-sm">{selected.gateOutCharges?.charges?.length?selected.gateOutCharges.charges.map(c=><div key={c.id} className="flex justify-between"><span>{c.name}</span><b>{formatMoney(c.amount)}</b></div>):<p className="text-muted-foreground">No Gate-out charges configured.</p>}</div>{!selected.gateOut?.payment?.submittedAt&&total>0&&<div className="mt-4 grid gap-3"><Input placeholder="Payment reference" value={payment.referenceNumber} onChange={e=>setPayment({...payment,referenceNumber:e.target.value})}/><div className="grid grid-cols-2 gap-3"><PaymentMethodSelect value={payment.method} onChange={(method)=>setPayment({...payment,method})}/><Input type="number" value={payment.amountSubmitted} onChange={e=>setPayment({...payment,amountSubmitted:e.target.value})}/></div><Button variant="outline" className="w-full" disabled={busy} onClick={submitPayment}>Record Payment Submitted</Button></div>}{selected.gateOut?.payment?.submittedAt&&<p className="mt-4 rounded-lg bg-emerald-50 p-3 text-sm font-medium text-emerald-700">Payment submitted: {selected.gateOut.payment.referenceNumber||'No reference'}</p>}{can(MODULES.GATE_OUT,ACTIONS.PROCESS)&&paymentDone&&<Button className="mt-4 w-full" disabled={busy} onClick={approve}>Approve Gate-out & Ready for Release</Button>}</section>}{selected.workflowStage==='READY_FOR_RELEASE'&&<div className="rounded-xl bg-emerald-50 p-4 text-sm font-semibold text-emerald-700">Gate-out approved. This container is now in the Release Container queue.</div>}</div>}</OperationDrawer></PageContainer>
+const peso=n=>new Intl.NumberFormat('en-PH',{style:'currency',currency:'PHP'}).format(Number(n||0));
+const EVENTS=['gate-out:updated','gate-out:approved','notification:new'];
+export default function GateOutPage(){
+ const {rows,search,setSearch,setPage,pagination,loading,error,setError,load}=usePagedOperationsList(operationsApi.gateOut.list,EVENTS);
+ const [selected,setSelected]=useState(null),[details,setDetails]=useState(null),[reason,setReason]=useState(''),[busy,setBusy]=useState(false);
+ useEffect(()=>{if(!selected){setDetails(null);return;}let alive=true;adminRequest(`/admin/gate-out-review/${selected.id}`).then(r=>{if(alive)setDetails(r.data)}).catch(e=>{if(alive)setError(e.message)});return()=>{alive=false}},[selected,setError]);
+ const review=async decision=>{
+  if(decision==='REJECT'&&!reason.trim()){setError('A rejection reason is required.');return;}
+  setBusy(true);setError('');
+  try{await adminRequest(`/admin/gate-out-review/${selected.id}/review`,{method:'POST',body:JSON.stringify({decision,reason})});setSelected(null);setReason('');await load();}
+  catch(e){setError(e.message)}finally{setBusy(false)}
+ };
+ const payment=details?.payments?.find(p=>p.status==='PENDING_VERIFICATION');
+ return <PageContainer><PageHeader title="Gate-out" description="Verify submitted online payment evidence and approve or reject the Gate-out request in one action."/>
+ {error&&<p role="alert" className="mb-3 rounded-xl bg-red-50 p-3 text-red-700">{error}</p>}
+ <OperationsTable rows={rows} search={search} onSearch={setSearch} onSelect={setSelected} loading={loading} pagination={pagination} onPage={setPage} empty="No pending Gate-out requests."/>
+ <OperationDrawer open={!!selected} title="Combined Gate-out Approval" subtitle={selected?.bookingReference} onClose={()=>setSelected(null)}>
+ {selected&&<div className="space-y-5"><DetailGrid item={selected}/>
+  <section className="rounded-xl border p-4 text-sm"><h3 className="font-bold">Existing Booking & Transport Details (read-only)</h3><p className="mt-2">Container: {selected.containerNumber} ({selected.containerSize} · {selected.containerType})</p><p>Truck: {details?.booking?.truckPlateNumber||selected.truckPlateNumber} · Driver: {details?.booking?.driverName||selected.driverName}</p><p>Driver licence: {details?.booking?.driverLicenceNumber||selected.driverLicenceNumber}</p><p>Gate-out scheduled: {selected.gateOut?.scheduledDate} {selected.gateOut?.scheduledTime}</p></section>
+  {!details?<p>Loading invoice and payment evidence...</p>:<section className="rounded-xl border p-4 text-sm"><h3 className="font-bold">Invoice and Payment Verification</h3>
+   <p className="mt-2"><b>Invoice:</b> {details.invoice?.number||'Not generated'} · <b>Amount due:</b> {peso(details.invoice?.total)}</p>
+   {details.invoice?.lines?.map((line,i)=><div key={i} className="flex justify-between border-b py-2"><span>{line.description} × {line.quantity}</span><span>{peso(line.amount)}</span></div>)}
+   <div className="mt-2 text-right"><p>Subtotal: {peso(details.invoice?.subtotal)}</p><p>VAT ({details.invoice?.vatRate}%): {peso(details.invoice?.vat)}</p><strong>Total: {peso(details.invoice?.total)}</strong></div>
+   <button type="button" className="mt-3 text-sm font-bold text-blue-700 underline" onClick={()=>openAdminFile(`/admin/gate-out-review/${selected.id}/invoice/pdf`,true).catch(e=>setError(e.message))}>Download Invoice PDF</button>
+   {details.payments?.map(p=><div key={p._id} className="mt-3 rounded-lg bg-muted p-3"><p><strong>Method:</strong> {p.method} · <strong>Reference:</strong> {p.reference||'Not supplied (proof uploaded)'}</p><p>Amount submitted: {peso(p.amount)} · {p.status}</p>{p.receivingAccount?.accountNumber&&<p className="mt-1 rounded-lg border border-slate-200 bg-white p-2 text-xs"><strong>Receiving account:</strong> {p.receivingAccount.bankName} · {p.receivingAccount.accountName} · {p.receivingAccount.accountNumber}</p>}{p.proof?.storedName?<button className="mt-2 text-blue-700 underline" type="button" onClick={()=>openAdminFile(`/admin/gate-out-review/payments/${p._id}/proof`).catch(e=>setError(e.message))}>View payment proof</button>:<p className="mt-2 text-xs text-muted-foreground">No attachment — verify against receiving account records using the reference.</p>}</div>)}
+  </section>}
+  <label className="block text-sm font-bold">Reason for rejection<textarea className="mt-2 min-h-24 w-full rounded-lg border p-3" value={reason} maxLength={800} onChange={e=>setReason(e.target.value)} placeholder="Required when rejecting; visible to client"/></label>
+  <div className="flex flex-wrap gap-3"><Button disabled={busy||!payment||!details?.invoice||Math.abs(payment.amount-details.invoice.total)>0.001} onClick={()=>review('APPROVE')}>Verify Payment & Approve Gate-out</Button><Button disabled={busy||!reason.trim()} variant="outline" onClick={()=>review('REJECT')}>Reject Gate-out</Button></div>
+ </div>}
+ </OperationDrawer></PageContainer>
 }
-function ErrorBox({text}){return <div className="mb-5 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{text}</div>}
-export default GateOutPage

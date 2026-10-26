@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL;
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api';
 
 export async function adminRequest(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
@@ -64,6 +64,7 @@ export const adminUsersApi = {
       method: "PUT",
       body: JSON.stringify({ permissions }),
     }),
+  remove: (id) => adminRequest(`/admin/users/${id}`, {method: 'DELETE'}),
   reissue: (id) =>
     adminRequest(`/admin/users/${id}/reissue-temporary-password`, {
       method: "POST",
