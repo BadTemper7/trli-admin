@@ -1,8 +1,4 @@
 import { useState } from 'react'
-<<<<<<< HEAD
-=======
-import { Link } from 'react-router-dom'
->>>>>>> eb1edb6baa48f1692cec002aa79d5d90f406662b
 import OperationGuidance from '@/components/operations/OperationGuidance.jsx'
 import OptionalChargesModal from '@/components/invoices/OptionalChargesModal.jsx'
 import GateInPaymentReview from '@/components/operations/GateInPaymentReview.jsx'
@@ -147,7 +143,6 @@ function GateInPage() {
   const inspectionStatus = selected?.gateIn?.inspection?.status || 'PENDING'
   const inspectionRejected = inspectionStatus === 'REJECTED'
   const paymentDone = selected?.gateIn?.payment?.status === 'VERIFIED' || (totalDue===0&&selected?.gateIn?.payment?.status==='VERIFIED')
-<<<<<<< HEAD
   const changedCorrections = selected ? Object.entries(inspection.corrections).filter(([key,value]) => String(selected[key] ?? '') !== String(value ?? '')) : []
   const inspectionComplete = Boolean(inspection.sealNumber.trim() && ['YES','NO'].includes(inspection.sealIntact) && inspection.containerCondition.length && !(inspection.containerCondition.includes('GOOD') && inspection.containerCondition.length>1))
   const canComplete = paymentDone && inspectionComplete && changedCorrections.length===0 && !selected?.gateIn?.actualGateInAt
@@ -162,23 +157,6 @@ function GateInPage() {
   return <PageContainer>
     <PageHeader title="Gate-in" description="Verify client payment, record the physical inspection, and confirm Gate-in with one final action." />
     <OperationGuidance current={0} steps={[{title:'Verify payment',note:'Confirm the client transaction inside Gate-in Processing.'},{title:'Inspect and confirm Gate-in',note:'Complete inspection details and use Confirm Physical Gate-in once. A rejected inspection remains a separate action.'}]} note="No-Show is not supported by the current Gate-in API (it accepts only ACCEPTED and REJECTED inspections). No fake No-Show action is shown. Use the existing rejection flow only for actual inspection rejection." />
-=======
-  const canComplete = inspectionAccepted && paymentDone
-  const queueFor = row => {
-    const paid = row.gateIn?.payment?.status === 'VERIFIED';
-    const inspection = row.gateIn?.inspection?.status;
-    if (inspection === 'REJECTED') return 'REJECTED';
-    if (!paid) return 'PAYMENT';
-    if (inspection !== 'ACCEPTED') return 'INSPECTION';
-    return 'READY';
-  };
-  const visibleRows = queue === 'ALL' ? rows : rows.filter(row => queueFor(row) === queue);
-  const queueChoices = [['ALL','All pending'],['PAYMENT','Payment not verified'],['INSPECTION','Awaiting inspection'],['READY','Ready for Gate-in'],['REJECTED','Inspection rejected']];
-
-  return <PageContainer>
-    <PageHeader title="Gate-in" description="Verify online payment, inspect the physical arrival, and explicitly confirm Gate-in." />
-    <OperationGuidance current={0} steps={[{title:'Verify payment',note:'Review the client evidence in Invoices & Verification.'},{title:'Inspect actual arrival',note:'Accept or reject the container inspection.'},{title:'Confirm physical Gate-in',note:'Only after payment and inspection are accepted.'}]} link={can(MODULES.PAYMENT_HISTORY,ACTIONS.VIEW)?"/invoice-review":undefined} linkLabel="Open payment verification" note="No-Show is not supported by the current Gate-in API (it accepts only ACCEPTED and REJECTED inspections). No fake No-Show action is shown. Use the existing rejection flow only for actual inspection rejection." />
->>>>>>> eb1edb6baa48f1692cec002aa79d5d90f406662b
     {error && <ErrorBox text={error} />}
     <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Gate-in task queues">{queueChoices.map(([value,label])=><button type="button" key={value} aria-pressed={queue===value} onClick={()=>setQueue(value)} className={`rounded-xl border px-3 py-2 text-xs font-bold ${queue===value?'border-primary bg-primary text-primary-foreground':'border-border bg-card text-foreground'}`}>{label} <span className="ml-1 opacity-75">{value==='ALL'?rows.length:rows.filter(row=>queueFor(row)===value).length}</span></button>)}</div>
     <p className="mb-3 text-xs text-muted-foreground">Queue counts and filters apply to the currently loaded page; use search and pagination to find more bookings.</p>
@@ -204,11 +182,7 @@ function GateInPage() {
       subtitle={selected?.bookingReference}
       onClose={() => setSelected(null)}
       footer={can(MODULES.GATE_IN, ACTIONS.PROCESS)
-<<<<<<< HEAD
         ? <Button className="w-full" title={!paymentDone ? "Verify the online payment first" : !inspectionComplete ? "Complete the seal and condition inspection" : changedCorrections.length ? "Booking corrections require a billing adjustment before Gate-in" : "Accept inspection and confirm physical entry together"} disabled={busy || !canComplete} onClick={process}><LogIn size={17} />{busy ? 'Processing...' : 'Confirm Physical Gate-in'}</Button>
-=======
-        ? <Button className="w-full" title={!canComplete ? "Requires verified payment and accepted inspection" : "Confirm actual physical entry"} disabled={busy || !canComplete} onClick={process}><LogIn size={17} />{busy ? 'Processing...' : 'Confirm Physical Gate-in'}</Button>
->>>>>>> eb1edb6baa48f1692cec002aa79d5d90f406662b
         : null}
     >
       {selected && <div className="space-y-7">
@@ -218,38 +192,24 @@ function GateInPage() {
         </div>
 
         <section className="rounded-2xl border p-4">
-<<<<<<< HEAD
           <div className="flex items-center justify-between"><h3 className="font-semibold">1. Online Payment Verification</h3><span className="font-bold">{formatMoney(totalDue)}</span></div>
-=======
-          <div className="flex items-center justify-between"><h3 className="font-semibold">1. Verified Online Payment</h3><span className="font-bold">{formatMoney(totalDue)}</span></div>
->>>>>>> eb1edb6baa48f1692cec002aa79d5d90f406662b
           {selected.gateInCharges?.charges?.length>0&&<div className="mt-3 divide-y rounded-xl border px-3 text-xs">{selected.gateInCharges.charges.map((line,index)=><div key={`${line.description}-${index}`} className="flex justify-between gap-3 py-2"><span>{line.description} × {line.quantity}{line.isOptional?' (optional)':''}</span><b>{formatMoney(line.amount)}</b></div>)}</div>}
           {can(MODULES.GATE_IN,ACTIONS.PROCESS)&&selected.gateInCharges?.invoiceId&&selected.gateInCharges?.paymentStatus==='UNPAID'&&<Button type="button" variant="outline" className="mt-3 w-full" onClick={()=>setOptionalInvoice(selected.gateInCharges.invoiceId)}>Add Manual Transaction / Documentation Fee</Button>}
           <p className="mt-2 text-sm">Payment status: <strong className={paymentDone?'text-emerald-700':'text-amber-700'}>{selected.gateIn?.payment?.status||'PENDING'}</strong></p>
           {selected.gateIn?.payment?.referenceNumber&&<p className="mt-1 text-xs">Reference: {selected.gateIn.payment.referenceNumber} · Method: {selected.gateIn.payment.method}</p>}
-<<<<<<< HEAD
           <GateInPaymentReview
             booking={selected}
             canReview={can(MODULES.GATE_IN, ACTIONS.PROCESS)}
             onReviewed={onPaymentReviewed}
           />
-=======
-          {can(MODULES.PAYMENT_HISTORY,ACTIONS.VIEW) ? <Link to="/invoice-review" className="mt-3 inline-flex rounded-lg border border-primary/30 px-3 py-2 text-xs font-bold text-primary">Review payments in Invoices & Verification</Link> : <p className="mt-3 text-xs text-muted-foreground">A staff member with payment-verification access must verify this payment.</p>}
-          {!paymentDone&&<p className="mt-3 rounded-lg bg-amber-50 p-3 text-sm text-amber-800">The client must provide a transaction reference or payment proof. Verify the online payment under Invoices & Payment Verification before confirming Gate-in.</p>}
->>>>>>> eb1edb6baa48f1692cec002aa79d5d90f406662b
         </section>
 
         <section className="rounded-2xl border border-border bg-card p-4">
           <div className="flex items-start gap-3">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-primary/10 text-primary"><ClipboardCheck size={18} /></span>
             <div>
-<<<<<<< HEAD
               <h3 className="font-semibold">2. Arrival Inspection & Physical Gate-in</h3>
               <p className="mt-1 text-xs leading-5 text-muted-foreground">Verify the physical container against the approved booking. The final Confirm Physical Gate-in action accepts this inspection and records entry together.</p>
-=======
-              <h3 className="font-semibold">2. Arrival Inspection & Booking Verification</h3>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">Verify the physical container against the booking. Correct any inaccurate booking details before accepting the inspection.</p>
->>>>>>> eb1edb6baa48f1692cec002aa79d5d90f406662b
             </div>
           </div>
 
@@ -278,7 +238,6 @@ function GateInPage() {
           <Field label="Rejection Reason" className="mt-4"><textarea className={`min-h-20 w-full rounded-xl border bg-background p-3 text-sm outline-none focus:ring-2 focus:ring-primary/20 ${inspectionRejected ? 'border-red-300' : 'border-input'}`} value={inspection.rejectionReason} onChange={(e) => setInspection({ ...inspection, rejectionReason: e.target.value })} placeholder="Required when rejecting the container" /></Field>
 
           {inspectionRejected && <div className="mt-4 flex gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700"><ShieldAlert className="mt-0.5 h-5 w-5 shrink-0" /><div><b>Physical Gate-in blocked.</b><div className="mt-1">{selected.gateIn?.inspection?.rejectionReason || 'This container must pass a new inspection before physical entry can be confirmed.'}</div></div></div>}
-<<<<<<< HEAD
 
           {can(MODULES.GATE_IN, ACTIONS.PROCESS) && !selected.gateIn?.actualGateInAt && <div className="mt-5 space-y-3">
             <Button variant="outline" className="border-red-200 text-red-700 hover:bg-red-50" disabled={busy || !paymentDone || !inspectionComplete || !inspection.rejectionReason.trim()} title={!paymentDone?"Verify payment first":"Reject the arrival with a required reason"} onClick={() => submitInspection('REJECTED')}><XCircle size={17} /> Reject Inspection</Button>
@@ -286,20 +245,6 @@ function GateInPage() {
           </div>}
           <Field label="Gate-in Remarks (optional)" className="mt-4"><textarea className="min-h-20 w-full rounded-xl border border-input bg-background p-3 text-sm outline-none focus:ring-2 focus:ring-primary/20" placeholder="Additional physical entry notes" value={remarks} onChange={(e) => setRemarks(e.target.value)} /></Field>
           {paymentDone && !inspectionComplete && <p className="mt-2 text-xs text-amber-700">Complete seal number, seal intact, and container condition to enable physical Gate-in.</p>}
-=======
-          {inspectionAccepted && <div className="mt-4 flex gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-700"><CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0" /><div><b>Inspection accepted.</b><div className="mt-1">Inspection passed. Physical Gate-in still requires verified payment and an explicit Gate-in confirmation.</div></div></div>}
-
-          {can(MODULES.GATE_IN, ACTIONS.PROCESS) && !selected.gateIn?.actualGateInAt && <div className="mt-5 grid gap-3 sm:grid-cols-2">
-            <Button variant="outline" className="border-red-200 text-red-700 hover:bg-red-50" disabled={busy || !paymentDone} title={!paymentDone?"Verify payment first":"Reject the actual inspection"} onClick={() => submitInspection('REJECTED')}><XCircle size={17} /> Reject Inspection</Button>
-            <Button disabled={busy || !paymentDone} title={!paymentDone?"Verify payment first":"Accept the actual inspection"} onClick={() => submitInspection('ACCEPTED')}><CheckCircle2 size={17} /> Accept Inspection</Button>
-          </div>}
-        </section>
-
-        <section className={`rounded-2xl border p-4 ${canComplete ? 'border-border' : 'border-slate-200 bg-slate-50/70'}`}>
-          <h3 className="font-semibold">3. Complete Gate-in (separate physical action)</h3>
-          <p className="mt-1 text-xs text-muted-foreground">Records the actual entry timestamp and adds the container to Inventory. Online payment must already be verified.</p>
-          <textarea className="mt-4 min-h-24 w-full rounded-xl border border-input bg-background p-3 text-sm outline-none focus:ring-2 focus:ring-primary/20" placeholder="Gate-in remarks (optional)" value={remarks} onChange={(e) => setRemarks(e.target.value)} />
->>>>>>> eb1edb6baa48f1692cec002aa79d5d90f406662b
         </section>
       </div>}
     </OperationDrawer>
