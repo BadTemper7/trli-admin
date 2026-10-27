@@ -37,7 +37,12 @@ export function usePagedOperationsList(loader, socketEvents = [], { limit = 20 }
   useEffect(() => {
     const refresh = () => load()
     socketEvents.forEach((event) => adminSocket.on(event, refresh))
-    return () => socketEvents.forEach((event) => adminSocket.off(event, refresh))
+    // Reconcile missed updates after an offline interval.
+    adminSocket.on('connect', refresh)
+    return () => {
+      socketEvents.forEach((event) => adminSocket.off(event, refresh))
+      adminSocket.off('connect', refresh)
+    }
   }, [load, socketEvents])
 
   return { rows, setRows, search, setSearch, page, setPage, pagination, loading, error, setError, load }

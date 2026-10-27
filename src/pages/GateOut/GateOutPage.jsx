@@ -1,4 +1,5 @@
 import {useEffect,useState} from 'react';
+import OperationGuidance from '@/components/operations/OperationGuidance.jsx';
 import PageContainer from '@/components/layout/PageContainer.jsx';
 import PageHeader from '@/components/layout/PageHeader.jsx';
 import OperationDrawer from '@/components/operations/OperationDrawer.jsx';
@@ -24,6 +25,7 @@ export default function GateOutPage(){
  };
  const payment=details?.payments?.find(p=>p.status==='PENDING_VERIFICATION');
  return <PageContainer><PageHeader title="Gate-out" description="Verify submitted online payment evidence and approve or reject the Gate-out request in one action."/>
+ <OperationGuidance steps={[{title:"Review request and payment",note:"Check invoice, transfer reference or proof."},{title:"Approve or reject",note:"Verification and Gate-out approval happen together."},{title:"Physical release",note:"A separate staff action in Release Container."}]} current={0} link="/release-container" linkLabel="Open Release Container" note="Gate-out approval never records actual physical release. Rejected payments remain available for the client to correct through My Bookings."/>
  {error&&<p role="alert" className="mb-3 rounded-xl bg-red-50 p-3 text-red-700">{error}</p>}
  <OperationsTable rows={rows} search={search} onSearch={setSearch} onSelect={setSelected} loading={loading} pagination={pagination} onPage={setPage} empty="No pending Gate-out requests."/>
  <OperationDrawer open={!!selected} title="Combined Gate-out Approval" subtitle={selected?.bookingReference} onClose={()=>setSelected(null)}>

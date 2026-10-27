@@ -1,0 +1,18 @@
+# Trans Roadway Logistics - Apache rewrite rules for a React SPA.
+# Deploy this file beside the built index.html in the Apache document root.
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # These are backend / WebSocket paths, not client-side React routes.
+  # Configure Apache reverse proxy for them separately if using same-origin URLs.
+  RewriteRule ^(api|socket\.io)(/|$) - [L,NC]
+
+  # Serve existing assets and directories directly.
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # BrowserRouter: serve React entry point for routes like /bookings/123.
+  RewriteRule ^ index.html [L]
+</IfModule>

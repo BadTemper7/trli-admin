@@ -45,7 +45,10 @@ export function AuthProvider({ children }) {
   const mustChangePassword = Boolean(user?.mustChangePassword)
 
   useEffect(() => {
-    if (!userId || mustChangePassword) return undefined
+    if (!userId || mustChangePassword) {
+      if (adminSocket.connected || adminSocket.active) adminSocket.disconnect()
+      return undefined
+    }
 
     if (!adminSocket.connected) adminSocket.connect()
 
