@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import OperationGuidance from '@/components/operations/OperationGuidance.jsx'
 import OptionalChargesModal from '@/components/invoices/OptionalChargesModal.jsx'
 import GateInPaymentReview from '@/components/operations/GateInPaymentReview.jsx'
@@ -52,13 +52,14 @@ function toInspectionForm(item) {
 const GATE_IN_EVENTS = ['gate-in:queue-updated', 'gate-in:inspection-updated', 'gate-in:updated', 'gate-in:completed']
 
 function GateInPage() {
-  const { rows, setRows, search, setSearch, setPage, pagination, loading, error, setError, load } = usePagedOperationsList(operationsApi.gateIn.list, GATE_IN_EVENTS)
+  const [queue, setQueue] = useState('ALL')
+  const queueList = useCallback(params => operationsApi.gateIn.list({ ...params, queue }), [queue])
+  const { rows, setRows, summary, loadSummary, search, setSearch, setPage, pagination, loading, error, setError, load } = usePagedOperationsList(queueList, GATE_IN_EVENTS, {summaryLoader: operationsApi.gateIn.summary})
   const [selected, setSelected] = useState(null)
   const [inspection, setInspection] = useState(blankInspection)
   const [remarks, setRemarks] = useState('')
   const [busy, setBusy] = useState(false)
   const [optionalInvoice, setOptionalInvoice] = useState(null)
-  const [queue, setQueue] = useState('ALL')
   const { can } = useAuth()
 
   const openItem = (row) => {
@@ -147,26 +148,21 @@ function GateInPage() {
   const changedCorrections = selected ? Object.entries(inspection.corrections).filter(([key,value]) => String(selected[key] ?? '') !== String(value ?? '')) : []
   const inspectionComplete = Boolean(inspection.sealNumber.trim() && ['YES','NO'].includes(inspection.sealIntact) && inspection.containerCondition.length && !(inspection.containerCondition.includes('GOOD') && inspection.containerCondition.length>1))
   const canComplete = paymentDone && inspectionComplete && changedCorrections.length===0 && !selected?.gateIn?.actualGateInAt
-  const queueFor = row => {
-    if (row.gateIn?.inspection?.status === 'REJECTED') return 'REJECTED';
-    if (row.gateIn?.payment?.status !== 'VERIFIED') return 'PAYMENT';
-    return 'READY';
-  };
-  const visibleRows = queue === 'ALL' ? rows : rows.filter(row => queueFor(row) === queue);
+  const visibleRows = rows; // Server applies the selected queue to the entire dataset.
   const queueChoices = [['ALL','All pending'],['PAYMENT','Payment not verified'],['READY','Payment verified — inspect & Gate-in'],['REJECTED','Inspection rejected']];
 
   return <PageContainer>
     <PageHeader title="Gate-in" description="Verify client payment, record the physical inspection, and confirm Gate-in with one final action." />
     <OperationGuidance current={0} steps={[{title:'Verify payment',note:'Confirm the client transaction inside Gate-in Processing.'},{title:'Inspect and confirm Gate-in',note:'Complete inspection details and use Confirm Physical Gate-in once. A rejected inspection remains a separate action.'}]} note="No-Show is not supported by the current Gate-in API (it accepts only ACCEPTED and REJECTED inspections). No fake No-Show action is shown. Use the existing rejection flow only for actual inspection rejection." />
     {error && <ErrorBox text={error} />}
-    <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Gate-in task queues">{queueChoices.map(([value,label])=><button type="button" key={value} aria-pressed={queue===value} onClick={()=>setQueue(value)} className={`rounded-xl border px-3 py-2 text-xs font-bold ${queue===value?'border-primary bg-primary text-primary-foreground':'border-border bg-card text-foreground'}`}>{label} <span className="ml-1 opacity-75">{value==='ALL'?rows.length:rows.filter(row=>queueFor(row)===value).length}</span></button>)}</div>
-    <p className="mb-3 text-xs text-muted-foreground">Queue counts and filters apply to the currently loaded page; use search and pagination to find more bookings.</p>
+    <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Gate-in task queues">{queueChoices.map(([value,label])=><button type="button" key={value} aria-pressed={queue===value} onClick={()=>{setQueue(value);setPage(1)}} className={`rounded-xl border px-3 py-2 text-xs font-bold ${queue===value?'border-primary bg-primary text-primary-foreground':'border-border bg-card text-foreground'}`}>{label} <span className="ml-1 opacity-75">{summary ? ({ALL:summary.all,PAYMENT:summary.payment,READY:summary.ready,REJECTED:summary.rejected}[value] ?? 0) : '—'}</span></button>)}</div>
+    <p className="mb-3 text-xs text-muted-foreground">Queue counts cover all matching bookings across every page, and the selected queue is filtered on the server.</p>
     <OperationsTable deleteModule={MODULES.GATE_IN} onDeleted={load}
       rows={visibleRows}
       search={search}
       onSearch={setSearch}
       onSelect={openItem} loading={loading} pagination={pagination} onPage={setPage}
-      empty={queue === "ALL" ? "No containers are waiting for Gate-in." : "No matching Gate-in records on this page."}
+      empty={queue === "ALL" ? "No containers are waiting for Gate-in." : "No matching Gate-in records in this queue."}
       extraColumns={{
         header: <><th className="px-5 py-3">Payment</th><th className="px-5 py-3">Inspection</th><th className="px-5 py-3">Gate-in Due</th></>,
         cell: (r) => <>

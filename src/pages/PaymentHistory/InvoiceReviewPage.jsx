@@ -28,16 +28,34 @@ export default function InvoiceReviewPage() {
   const [error, setError] = useState('');
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('ALL');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
+  const [page, setPage] = useState(1);
+  const [pagination, setPagination] = useState({ page:1, limit:20, total:0, totalPages:1 });
+  const [cards, setCards] = useState({ gateInPending:0, unpaid:0, paid:0 });
+  useEffect(() => { const timeout = window.setTimeout(() => {setDebouncedQuery(query.trim());setPage(1);},300);return () => window.clearTimeout(timeout); }, [query]);
 
   const refresh = useCallback(async () => {
     try {
-      const result = await adminRequest(`/admin/invoices${bookingFilter ? `?booking=${encodeURIComponent(bookingFilter)}` : ''}`);
+      const q = new URLSearchParams({page:String(page),limit:'20'});
+      if (bookingFilter) q.set('booking',bookingFilter);
+      if (debouncedQuery) q.set('search',debouncedQuery);
+      if (filter !== 'ALL') q.set(filter.startsWith('GATE_')?'type':'status',filter);
+      const result = await adminRequest(`/admin/invoices?${q}`);
       setInvoices(result.data?.items || []);
+      setPagination(result.data?.pagination || {page,limit:20,total:0,totalPages:1});
       setError('');
-    } catch (err) {
-      setError(err.message || 'Unable to load invoice history.');
-    }
-  }, [bookingFilter]);
+    } catch (err) { setError(err.message || 'Unable to load invoice history.'); }
+  }, [bookingFilter, debouncedQuery, filter, page]);
+  const refreshCards = useCallback(async () => {
+    try {
+      const q = new URLSearchParams({scope:'filtered'});
+      if (bookingFilter) q.set('booking',bookingFilter);
+      if (debouncedQuery) q.set('search',debouncedQuery);
+      // Counts are independent of the selected status/type, not of search.
+      const result = await adminRequest(`/admin/invoices/summary?${q}`);
+      setCards(result.data?.summary || {gateInPending:0,unpaid:0,paid:0});
+    } catch { /* Keep existing counts if the summary is temporarily unavailable. */ }
+  }, [bookingFilter, debouncedQuery]);
 
   useEffect(() => {
     let active = true;
@@ -46,11 +64,12 @@ export default function InvoiceReviewPage() {
     return () => { active = false; };
   }, [refresh]);
 
+  useEffect(() => { refreshCards(); }, [refreshCards]);
   useEffect(() => {
-    const reload = () => refresh();
+    const reload = () => { refresh(); refreshCards(); };
     for (const event of ['gate-in:updated','gate-in:queue-updated','gate-out:updated','invoice:updated','notification:new','connect']) adminSocket.on(event, reload);
     return () => { for (const event of ['gate-in:updated','gate-in:queue-updated','gate-out:updated','invoice:updated','notification:new','connect']) adminSocket.off(event, reload); };
-  }, [refresh]);
+  }, [refresh, refreshCards]);
 
   const showDetails = async id => {
     setLoadingDetails(true);setError('');
@@ -63,9 +82,7 @@ export default function InvoiceReviewPage() {
   };
 
   const deletion = useBulkDeletion(MODULES.PAYMENT_HISTORY,{onDeleted:refresh});
-  const shown = useMemo(() => invoices
-    .filter(invoice => filter === 'ALL' || invoice.type === filter || invoice.status === filter)
-    .filter(invoice => `${invoice.number} ${invoice.company?.companyName || ''} ${invoice.type || ''}`.toLowerCase().includes(query.toLowerCase().trim())), [invoices, filter, query]);
+  const shown = invoices; // The server applies filters before pagination.
   const download = path => openAdminFile(path, true).catch(err => setError(err.message));
 
   return <PageContainer>
@@ -73,9 +90,9 @@ export default function InvoiceReviewPage() {
     <div className="min-w-0 space-y-5">
     <section className="grid gap-3 sm:grid-cols-3">
       {[
-        ['Awaiting payment review', invoices.filter(i => i.type === 'GATE_IN' && i.status === 'PAYMENT_SUBMITTED').length, Clock3],
-        ['Unpaid invoices', invoices.filter(i => i.status === 'UNPAID').length, FileText],
-        ['Paid invoices', invoices.filter(i => i.status === 'PAID').length, CheckCircle2],
+        ['Awaiting payment review', cards.gateInPending, Clock3],
+        ['Unpaid invoices', cards.unpaid, FileText],
+        ['Paid invoices', cards.paid, CheckCircle2],
       ].map(([title,value,Icon]) => <div key={title} className="flex items-center gap-3 rounded-2xl border border-border bg-card p-4">
         <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary"><Icon size={19}/></span>
         <div><strong className="text-2xl font-extrabold">{value}</strong><p className="text-xs font-bold text-muted-foreground">{title}</p></div>
@@ -90,8 +107,8 @@ export default function InvoiceReviewPage() {
       <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-lg font-extrabold">Invoice records</h2>
         <div className="flex flex-wrap gap-2">
-          <div className="relative"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"/><input className="h-10 rounded-lg border border-input bg-background pl-9 pr-3 text-sm" placeholder="Invoice or company" aria-label="Search invoices" value={query} onChange={event => setQuery(event.target.value)}/></div>
-          <select className="h-10 rounded-lg border border-input bg-background px-3 text-sm" aria-label="Invoice filter" value={filter} onChange={event => setFilter(event.target.value)}>{[['ALL','All'],['GATE_IN','Gate-in'],['GATE_OUT','Gate-out'],['UNPAID','Unpaid'],['PAYMENT_SUBMITTED','Under verification'],['PAID','Paid']].map(([value,label]) => <option value={value} key={value}>{label}</option>)}</select>
+          <div className="relative"><Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground"/><input className="h-10 rounded-lg border border-input bg-background pl-9 pr-3 text-sm" placeholder="Invoice number (prefix)" aria-label="Search invoices" value={query} onChange={event => setQuery(event.target.value)}/></div>
+          <select className="h-10 rounded-lg border border-input bg-background px-3 text-sm" aria-label="Invoice filter" value={filter} onChange={event => {setFilter(event.target.value);setPage(1)}}>{[['ALL','All'],['GATE_IN','Gate-in'],['GATE_OUT','Gate-out'],['UNPAID','Unpaid'],['PAYMENT_SUBMITTED','Under verification'],['PAID','Paid']].map(([value,label]) => <option value={value} key={value}>{label}</option>)}</select>
         </div>
       </div>
       {bookingFilter && <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-sky-50 p-3 text-xs font-semibold text-sky-900"><span>Showing invoices linked to a selected booking.</span><Link to="/invoice-review" className="text-primary underline underline-offset-4">Clear booking filter</Link></div>}
@@ -107,6 +124,13 @@ export default function InvoiceReviewPage() {
           <RowActions items={[{label:"View payment history",onClick:()=>showDetails(invoice._id)},{label:"Download invoice",onClick:()=>download(`/admin/invoices/${invoice._id}/pdf`)},...(invoice.status==='PAID'?[{label:"Download receipt",onClick:()=>download(`/admin/invoices/${invoice._id}/receipt`)}]:[])]} canDelete={deletion.allowed&&['UNPAID','CANCELLED','VOID'].includes(invoice.status)} onDelete={()=>deletion.ask([invoice._id])}/>
         </div>
       </div>)}</div> : <div className="p-12 text-center text-sm text-muted-foreground">No invoices match your filters.</div>}
+      <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border p-4 text-sm">
+        <span>Showing {shown.length} of {pagination.total ?? 0} matching invoices · Page {page} of {pagination.totalPages ?? 1}</span>
+        <div className="flex gap-2">
+          <button type="button" className="rounded-lg border px-3 py-2 font-bold disabled:opacity-40" disabled={page===1} onClick={()=>setPage(value=>value-1)}>Previous</button>
+          <button type="button" className="rounded-lg border px-3 py-2 font-bold disabled:opacity-40" disabled={page>=(pagination.totalPages||1)} onClick={()=>setPage(value=>value+1)}>Next</button>
+        </div>
+      </div>
     </section>
     {loadingDetails && <div role="status" className="rounded-xl border bg-card p-4 text-sm">Loading payment history…</div>}
     {details && <section className="rounded-2xl border border-border bg-card p-5" aria-label="Invoice payment history">

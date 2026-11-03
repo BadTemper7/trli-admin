@@ -11,24 +11,48 @@ import {MODULES,ACTIONS} from '@/constants/permissions.js';
 import {HistoricalContainerForm} from './HistoricalContainerForm.jsx';
 
 export default function ContainerTrackingPage(){
- const {can}=useAuth();const [items,setItems]=useState([]),[total,setTotal]=useState(0),[search,setSearch]=useState(''),[status,setStatus]=useState(''),[company,setCompany]=useState(''),[from,setFrom]=useState(''),[to,setTo]=useState(''),[companies,setCompanies]=useState([]),[page,setPage]=useState(1),[loading,setLoading]=useState(true),[error,setError]=useState(''),[adding,setAdding]=useState(false),[showArchived,setShowArchived]=useState(false);
- const load=useCallback(async()=>{setLoading(true);try{const p=new URLSearchParams({page:String(page),limit:'25'});if(search.trim())p.set('search',search.trim());if(status)p.set('status',status);if(company)p.set('company',company);if(from)p.set('from',from);if(to)p.set('to',to);if(showArchived)p.set('includeDeleted','true');const r=await adminRequest(`/admin/container-tracking?${p}`);setItems(r.data.items);setTotal(r.data.total);setError('')}catch(e){setError(e.message)}finally{setLoading(false)}},[page,search,status,company,from,to,showArchived]);
- const deletion=useBulkDeletion(MODULES.CONTAINER_TRACKING,{onDeleted:load});
- useEffect(()=>{load()},[load]);useEffect(()=>{adminRequest('/admin/container-tracking/companies').then(r=>setCompanies(r.data.items)).catch(()=>{})},[]);
+ const {can}=useAuth();const [items,setItems]=useState([]),[total,setTotal]=useState(0),[search,setSearch]=useState(''),[status,setStatus]=useState(''),[company,setCompany]=useState(''),[from,setFrom]=useState(''),[to,setTo]=useState(''),[companies,setCompanies]=useState([]),[page,setPage]=useState(1),[cursors,setCursors]=useState([null]),[hasMore,setHasMore]=useState(false),[debouncedSearch,setDebouncedSearch]=useState(''),[loading,setLoading]=useState(true),[error,setError]=useState(''),[adding,setAdding]=useState(false),[showArchived,setShowArchived]=useState(false);
+ const reset=()=>{setPage(1);setCursors([null])};
+ useEffect(()=>{const handle=window.setTimeout(()=>{setDebouncedSearch(search.trim());reset()},300);return()=>window.clearTimeout(handle)},[search]);
+ const filters=useCallback(()=>{
+   const p=new URLSearchParams();
+   if(debouncedSearch)p.set('search',debouncedSearch);
+   if(status)p.set('status',status);
+   if(company)p.set('company',company);
+   if(from)p.set('from',from);
+   if(to)p.set('to',to);
+   if(showArchived)p.set('includeDeleted','true');
+   return p;
+ },[debouncedSearch,status,company,from,to,showArchived]);
+ const load=useCallback(async()=>{setLoading(true);try{
+   const p=filters();p.set('pagination','cursor');p.set('limit','25');
+   if(cursors[page-1])p.set('cursor',cursors[page-1]);
+   const r=await adminRequest(`/admin/container-tracking?${p}`);
+   setItems(r.data.items||[]);setHasMore(Boolean(r.data.hasMore));
+   setCursors(previous=>{const next=previous.slice(0,page);if(r.data.nextCursor)next[page]=r.data.nextCursor;return next});
+   setError('');
+ }catch(e){setError(e.message)}finally{setLoading(false)}},[page,cursors[page-1],filters]);
+ const loadSummary=useCallback(async()=>{try{
+   const p=filters();p.set('scope','filtered');
+   const r=await adminRequest(`/admin/container-tracking/summary?${p}`);
+   setTotal(r.data.total||0);
+ }catch{/* keep existing total on temporary summary failure */}},[filters]);
+ const deletion=useBulkDeletion(MODULES.CONTAINER_TRACKING,{onDeleted:()=>{load();loadSummary()}});
+ useEffect(()=>{load()},[load]);useEffect(()=>{loadSummary()},[loadSummary]);useEffect(()=>{adminRequest('/admin/container-tracking/companies').then(r=>setCompanies(r.data.items)).catch(()=>{})},[]);
  return <PageContainer><PageHeader title="Container Tracking" description="Live bookings and imported historical containers, with permissions and audit history." actions={can(MODULES.CONTAINER_TRACKING,ACTIONS.CREATE)?<Button onClick={()=>setAdding(true)}><Plus size={17}/> Add Existing Container</Button>:null}/>
- <div className="mb-3 flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={showArchived} onChange={e=>{setShowArchived(e.target.checked);setPage(1)}} id="tracking-archived"/><label htmlFor="tracking-archived">Include archived tracking records (view-only unless Delete access is granted)</label></div>
+ <div className="mb-3 flex items-center gap-2 text-sm text-slate-600"><input type="checkbox" checked={showArchived} onChange={e=>{setShowArchived(e.target.checked);reset()}} id="tracking-archived"/><label htmlFor="tracking-archived">Include archived tracking records (view-only unless Delete access is granted)</label></div>
  <section className="mb-5 grid gap-3 rounded-xl border bg-white p-4 shadow-sm sm:grid-cols-2 lg:grid-cols-5">
-  <label className="text-xs font-semibold">Container number<input className="mt-1 w-full rounded-lg border p-2 text-sm" value={search} onChange={e=>{setSearch(e.target.value);setPage(1)}} placeholder="Search container"/></label>
-  <label className="text-xs font-semibold">Status<select className="mt-1 w-full rounded-lg border p-2 text-sm" value={status} onChange={e=>{setStatus(e.target.value);setPage(1)}}>{['','UNKNOWN','BOOKED','GATED_IN','STORED','GATE_OUT_APPROVED','RELEASED','CANCELLED'].map(v=><option key={v} value={v}>{v||'All statuses'}</option>)}</select></label>
-  <label className="text-xs font-semibold">Client<select className="mt-1 w-full rounded-lg border p-2 text-sm" value={company} onChange={e=>{setCompany(e.target.value);setPage(1)}}><option value="">All clients</option>{companies.map(c=><option key={c._id} value={c._id}>{c.companyName}</option>)}</select></label>
-  <label className="text-xs font-semibold">From<input className="mt-1 w-full rounded-lg border p-2 text-sm" type="date" value={from} onChange={e=>{setFrom(e.target.value);setPage(1)}}/></label>
-  <label className="text-xs font-semibold">To<input className="mt-1 w-full rounded-lg border p-2 text-sm" type="date" value={to} onChange={e=>{setTo(e.target.value);setPage(1)}}/></label>
+  <label className="text-xs font-semibold">Container number<input className="mt-1 w-full rounded-lg border p-2 text-sm" value={search} onChange={e=>{setSearch(e.target.value);reset()}} placeholder="Search container"/></label>
+  <label className="text-xs font-semibold">Status<select className="mt-1 w-full rounded-lg border p-2 text-sm" value={status} onChange={e=>{setStatus(e.target.value);reset()}}>{['','UNKNOWN','BOOKED','GATED_IN','STORED','GATE_OUT_APPROVED','RELEASED','CANCELLED'].map(v=><option key={v} value={v}>{v||'All statuses'}</option>)}</select></label>
+  <label className="text-xs font-semibold">Client<select className="mt-1 w-full rounded-lg border p-2 text-sm" value={company} onChange={e=>{setCompany(e.target.value);reset()}}><option value="">All clients</option>{companies.map(c=><option key={c._id} value={c._id}>{c.companyName}</option>)}</select></label>
+  <label className="text-xs font-semibold">From<input className="mt-1 w-full rounded-lg border p-2 text-sm" type="date" value={from} onChange={e=>{setFrom(e.target.value);reset()}}/></label>
+  <label className="text-xs font-semibold">To<input className="mt-1 w-full rounded-lg border p-2 text-sm" type="date" value={to} onChange={e=>{setTo(e.target.value);reset()}}/></label>
  </section>
  {error&&<div role="alert" className="mb-4 rounded-lg border border-red-200 bg-red-50 p-4 text-red-800">{error}</div>}
  <DeletionFeedback control={deletion}/><section className="overflow-hidden rounded-xl border bg-white shadow-sm"><BulkDeleteToolbar control={deletion} ids={items.map(x=>`${x.source.toLowerCase()}:${x.id}`)}/><div className="flex flex-wrap justify-between gap-2 border-b px-4 py-3 text-sm text-slate-500"><span>{total} container records</span><span>Historical imports are marked separately and do not create financial transactions.</span></div>
  {loading?<p className="p-8 text-center text-slate-500">Loading container records…</p>:<div className="overflow-x-auto"><table className="w-full min-w-[900px] text-left text-sm"><thead className="bg-slate-50 text-xs uppercase text-slate-500"><tr>{deletion.allowed&&<th className="px-3 py-3"/>}{['Container','Client','Source','Size / Type','Status','Gate-in','Release','Action'].map(t=><th key={t} className="px-4 py-3">{t}</th>)}</tr></thead><tbody>{items.map(x=><tr key={`${x.source}-${x.id}`} className="border-t hover:bg-slate-50">{deletion.allowed&&<td className="px-3 py-3"><SelectRecord label={`Select ${x.containerNumber}`} checked={deletion.selected.includes(`${x.source.toLowerCase()}:${x.id}`)} onChange={v=>deletion.toggle(`${x.source.toLowerCase()}:${x.id}`,v)} /></td>}<td className="px-4 py-3 font-bold">{x.containerNumber}</td><td className="px-4 py-3">{x.companyName||'—'}</td><td className="px-4 py-3"><span className={`rounded-md px-2 py-1 text-xs font-bold ${x.source==='HISTORICAL'?'bg-amber-50 text-amber-800':'bg-sky-50 text-sky-800'}`}>{x.source==='HISTORICAL'?'Imported':'Live'}</span>{x.deletedAt&&<span className="ml-1 rounded bg-rose-50 px-2 py-1 text-xs font-bold text-rose-700">Archived</span>}</td><td className="px-4 py-3">{x.containerSize} / {x.containerType}</td><td className="px-4 py-3">{String(x.status).replaceAll('_',' ')}</td><td className="px-4 py-3">{x.gateInAt?new Date(x.gateInAt).toLocaleDateString('en-PH',{timeZone:'Asia/Manila'}):'—'}</td><td className="px-4 py-3">{x.gateOutAt?new Date(x.gateOutAt).toLocaleDateString('en-PH',{timeZone:'Asia/Manila'}):'—'}</td><td className="px-4 py-3"><RowActions items={[{label:"View details",onClick:()=>window.location.assign(`/container-tracking/${x.source.toLowerCase()}/${x.id}`)}]} canDelete={deletion.allowed} onDelete={()=>deletion.ask([`${x.source.toLowerCase()}:${x.id}`])}/></td></tr>)}{!items.length&&<tr><td className="py-12 text-center text-slate-500" colSpan="8">No containers match these filters.</td></tr>}</tbody></table></div>}
- <div className="flex justify-between border-t p-4 text-sm"><span>Page {page} of {Math.max(1,Math.ceil(total/25))}</span><div className="flex gap-2"><Button variant="outline" disabled={page===1} onClick={()=>setPage(p=>p-1)}>Previous</Button><Button variant="outline" disabled={page*25>=total} onClick={()=>setPage(p=>p+1)}>Next</Button></div></div></section>
+ <div className="flex justify-between border-t p-4 text-sm"><span>Page {page} · {total} total matching containers</span><div className="flex gap-2"><Button variant="outline" disabled={page===1} onClick={()=>setPage(p=>p-1)}>Previous</Button><Button variant="outline" disabled={!hasMore} onClick={()=>setPage(p=>p+1)}>Next</Button></div></div></section>
  <DeletionDialog control={deletion}/>
- {adding&&<div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 p-4" role="dialog" aria-modal="true" aria-label="Import existing container"><div className="mx-auto max-w-4xl rounded-2xl bg-white p-5 shadow-2xl"><div className="mb-4 flex justify-between"><h2 className="text-xl font-bold">Register Existing / Historical Container</h2><button className="text-2xl" onClick={()=>setAdding(false)} aria-label="Close">×</button></div><HistoricalContainerForm companies={companies} onSave={async values=>{await adminRequest('/admin/container-tracking/historical',{method:'POST',body:JSON.stringify(values)});setAdding(false);await load()}} /></div></div>}
+ {adding&&<div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 p-4" role="dialog" aria-modal="true" aria-label="Import existing container"><div className="mx-auto max-w-4xl rounded-2xl bg-white p-5 shadow-2xl"><div className="mb-4 flex justify-between"><h2 className="text-xl font-bold">Register Existing / Historical Container</h2><button className="text-2xl" onClick={()=>setAdding(false)} aria-label="Close">×</button></div><HistoricalContainerForm companies={companies} onSave={async values=>{await adminRequest('/admin/container-tracking/historical',{method:'POST',body:JSON.stringify(values)});setAdding(false);reset();await load();await loadSummary()}} /></div></div>}
  </PageContainer>
 }

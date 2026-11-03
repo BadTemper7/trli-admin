@@ -14,11 +14,13 @@ export const operationsApi = {
   },
   gateIn: {
     list: (params) => adminRequest(`/admin/operations/gate-in${query(params)}`),
+    summary: (params) => adminRequest(`/admin/operations/gate-in/summary${query(params)}`),
     inspect: (id, data) => adminRequest(`/admin/operations/gate-in/${id}/inspection`, { method: 'POST', body: JSON.stringify(data) }),
     process: (id, data = {}) => adminRequest(`/admin/operations/gate-in/${id}/process`, { method: 'POST', body: JSON.stringify(data) }),
   },
   inventory: {
     list: (params) => adminRequest(`/admin/operations/inventory${query(params)}`),
+    summary: (params) => adminRequest(`/admin/operations/inventory/summary${query(params)}`),
     update: (id, data) => adminRequest(`/admin/operations/inventory/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
   },
   gateOut: {

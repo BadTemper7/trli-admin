@@ -2,9 +2,10 @@ import { useCallback, useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { adminSocket } from '@/lib/adminSocket.js'
 
-export function usePagedOperationsList(loader, socketEvents = [], { limit = 20 } = {}) {
+export function usePagedOperationsList(loader, socketEvents = [], { limit = 20, summaryLoader = null } = {}) {
   const location = useLocation()
   const [rows, setRows] = useState([])
+  const [summary, setSummary] = useState(null)
   const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get('search') || '')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
@@ -40,9 +41,18 @@ export function usePagedOperationsList(loader, socketEvents = [], { limit = 20 }
     }
   }, [loader, page, limit, debouncedSearch])
 
+  const loadSummary = useCallback(async () => {
+    if (!summaryLoader) return
+    try {
+      const response = await summaryLoader({ scope: 'filtered', search: debouncedSearch || undefined })
+      setSummary(response.data?.summary || null)
+    } catch { /* Keep the table usable; never substitute page counts. */ }
+  }, [summaryLoader, debouncedSearch])
+
   useEffect(() => { load() }, [load])
+  useEffect(() => { loadSummary() }, [loadSummary])
   useEffect(() => {
-    const refresh = () => load()
+    const refresh = () => { load(); loadSummary() }
     socketEvents.forEach((event) => adminSocket.on(event, refresh))
     // Reconcile missed updates after an offline interval.
     adminSocket.on('connect', refresh)
@@ -50,7 +60,7 @@ export function usePagedOperationsList(loader, socketEvents = [], { limit = 20 }
       socketEvents.forEach((event) => adminSocket.off(event, refresh))
       adminSocket.off('connect', refresh)
     }
-  }, [load, socketEvents])
+  }, [load, loadSummary, socketEvents])
 
-  return { rows, setRows, search, setSearch, page, setPage, pagination, loading, error, setError, load }
+  return { rows, setRows, summary, loadSummary, search, debouncedSearch, setSearch, page, setPage, pagination, loading, error, setError, load }
 }
