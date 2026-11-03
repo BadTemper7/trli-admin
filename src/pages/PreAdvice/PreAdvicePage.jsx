@@ -39,7 +39,7 @@ export default function PreAdvicePage(){
     <OperationGuidance current={0} steps={[{title:"Review pre-advice",note:"Approve or reject the client booking."},{title:"Client pays Gate-in invoice",note:"Client pays in advance after approval."},{title:"Gate-in operations",note:"Payment, inspection and physical entry remain separate."}]} note="Approving a booking generates billing eligibility; it does not mark the container gated in." link={can(MODULES.GATE_IN,ACTIONS.VIEW)?"/gate-in":undefined} linkLabel="Open Gate-in"/>
     {error&&<div role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</div>}
     <div className="mb-5 flex flex-wrap gap-2">{TABS.map(({value,label,icon:Icon})=><button key={value} type="button" onClick={()=>{setApproval(value);setSelected(null);setPage(1)}} className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold ${approval===value?'border-primary bg-primary text-white':'border-border bg-card text-foreground'}`}><Icon className="size-4"/>{label}</button>)}</div>
-    <OperationsTable rows={rows} search={search} onSearch={setSearch} onSelect={open} empty={`No ${approval.toLowerCase()} pre-advice records.`} loading={loading} pagination={pagination} onPage={setPage}/>
+    <OperationsTable deleteModule={MODULES.PRE_ADVICE} onDeleted={load} rows={rows} search={search} onSearch={setSearch} onSelect={open} empty={`No ${approval.toLowerCase()} pre-advice records.`} loading={loading} pagination={pagination} onPage={setPage}/>
     <OperationDrawer open={!!selected} title={selected?.bookingReference} subtitle={selected?.containerNumber} onClose={()=>setSelected(null)}>
       {selected&&<div className="space-y-5">
         <DetailGrid item={selected}/>

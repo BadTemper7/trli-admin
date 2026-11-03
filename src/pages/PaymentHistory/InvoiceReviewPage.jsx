@@ -1,6 +1,9 @@
+import {useBulkDeletion,RowActions,SelectRecord,BulkDeleteToolbar,DeletionDialog,DeletionFeedback} from '@/components/deletion/DeletionControls.jsx';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, Clock3, FileText, Search } from 'lucide-react';
+import PageContainer from '@/components/layout/PageContainer.jsx';
+import PageHeader from '@/components/layout/PageHeader.jsx';
 import OptionalChargesModal from '@/components/invoices/OptionalChargesModal.jsx';
 import { useAuth } from '@/context/AuthContext.jsx';
 import { MODULES, ACTIONS } from '@/constants/permissions.js';
@@ -45,8 +48,8 @@ export default function InvoiceReviewPage() {
 
   useEffect(() => {
     const reload = () => refresh();
-    for (const event of ['gate-in:updated','gate-in:queue-updated','gate-out:updated','notification:new','connect']) adminSocket.on(event, reload);
-    return () => { for (const event of ['gate-in:updated','gate-in:queue-updated','gate-out:updated','notification:new','connect']) adminSocket.off(event, reload); };
+    for (const event of ['gate-in:updated','gate-in:queue-updated','gate-out:updated','invoice:updated','notification:new','connect']) adminSocket.on(event, reload);
+    return () => { for (const event of ['gate-in:updated','gate-in:queue-updated','gate-out:updated','invoice:updated','notification:new','connect']) adminSocket.off(event, reload); };
   }, [refresh]);
 
   const showDetails = async id => {
@@ -59,17 +62,15 @@ export default function InvoiceReviewPage() {
     } finally { setLoadingDetails(false); }
   };
 
+  const deletion = useBulkDeletion(MODULES.PAYMENT_HISTORY,{onDeleted:refresh});
   const shown = useMemo(() => invoices
     .filter(invoice => filter === 'ALL' || invoice.type === filter || invoice.status === filter)
     .filter(invoice => `${invoice.number} ${invoice.company?.companyName || ''} ${invoice.type || ''}`.toLowerCase().includes(query.toLowerCase().trim())), [invoices, filter, query]);
   const download = path => openAdminFile(path, true).catch(err => setError(err.message));
 
-  return <div className="space-y-5">
-    <header>
-      <p className="text-xs font-extrabold uppercase tracking-widest text-primary">Payments & Transactions</p>
-      <h1 className="mt-1 text-2xl font-extrabold">Invoices & Payment History</h1>
-      <p className="mt-1 text-sm text-muted-foreground">View invoice balances, payment attempts, receipt documents, and manual billing charges. Gate-in payment approval is now completed inside Gate-in Processing.</p>
-    </header>
+  return <PageContainer>
+    <PageHeader title="Invoices & Payment History" description="View invoice balances, payment attempts, receipt documents, and manual billing charges. Gate-in payment approval is now completed inside Gate-in Processing." />
+    <div className="min-w-0 space-y-5">
     <section className="grid gap-3 sm:grid-cols-3">
       {[
         ['Awaiting payment review', invoices.filter(i => i.type === 'GATE_IN' && i.status === 'PAYMENT_SUBMITTED').length, Clock3],
@@ -85,7 +86,7 @@ export default function InvoiceReviewPage() {
       <Link to="/gate-in" className="inline-flex shrink-0 items-center gap-1 text-xs font-bold text-primary">Open Gate-in <ArrowRight size={15}/></Link>
     </div>
     {error && <p role="alert" className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">{error}</p>}
-    <section className="rounded-2xl border border-border bg-card shadow-sm">
+    <DeletionFeedback control={deletion}/><section className="rounded-2xl border border-border bg-card shadow-sm"><BulkDeleteToolbar control={deletion} ids={shown.filter(i=>['UNPAID','CANCELLED','VOID'].includes(i.status)).map(i=>i._id)}/>
       <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="text-lg font-extrabold">Invoice records</h2>
         <div className="flex flex-wrap gap-2">
@@ -94,7 +95,7 @@ export default function InvoiceReviewPage() {
         </div>
       </div>
       {bookingFilter && <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border bg-sky-50 p-3 text-xs font-semibold text-sky-900"><span>Showing invoices linked to a selected booking.</span><Link to="/invoice-review" className="text-primary underline underline-offset-4">Clear booking filter</Link></div>}
-      {loading ? <div className="p-5"><div className="h-40 animate-pulse rounded-xl bg-muted"/></div> : shown.length ? <div className="divide-y divide-border">{shown.map(invoice => <div key={invoice._id} className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">
+      {loading ? <div className="p-5"><div className="h-40 animate-pulse rounded-xl bg-muted"/></div> : shown.length ? <div className="divide-y divide-border">{shown.map(invoice => <div key={invoice._id} className="flex flex-wrap items-center justify-between gap-3 p-4 text-sm">{deletion.allowed&&<SelectRecord label={`Select invoice ${invoice.number}`} checked={deletion.selected.includes(invoice._id)} onChange={v=>deletion.toggle(invoice._id,v)}/>}
         <div className="min-w-0"><strong>{invoice.number}</strong><p className="mt-1 text-xs text-muted-foreground">{invoice.company?.companyName || 'Client'} · {pretty(invoice.type)}</p></div>
         <strong>{peso(invoice.total)}</strong>
         <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${badge(invoice.status)}`}>{pretty(invoice.status)}</span>
@@ -103,6 +104,7 @@ export default function InvoiceReviewPage() {
           <button type="button" className="font-bold text-primary underline" onClick={() => showDetails(invoice._id)}>View history</button>
           <button type="button" className="font-bold text-primary underline" onClick={() => download(`/admin/invoices/${invoice._id}/pdf`)}>Invoice PDF</button>
           {invoice.status === 'PAID' && <button type="button" className="font-bold text-primary underline" onClick={() => download(`/admin/invoices/${invoice._id}/receipt`)}>Receipt PDF</button>}
+          <RowActions items={[{label:"View payment history",onClick:()=>showDetails(invoice._id)},{label:"Download invoice",onClick:()=>download(`/admin/invoices/${invoice._id}/pdf`)},...(invoice.status==='PAID'?[{label:"Download receipt",onClick:()=>download(`/admin/invoices/${invoice._id}/receipt`)}]:[])]} canDelete={deletion.allowed&&['UNPAID','CANCELLED','VOID'].includes(invoice.status)} onDelete={()=>deletion.ask([invoice._id])}/>
         </div>
       </div>)}</div> : <div className="p-12 text-center text-sm text-muted-foreground">No invoices match your filters.</div>}
     </section>
@@ -118,6 +120,8 @@ export default function InvoiceReviewPage() {
       </div>) : <p className="text-sm text-muted-foreground">No payment submissions for this invoice.</p>}</div>
       <p className="mt-3 text-xs text-muted-foreground">Payment review is not available here. Gate-in verification must be performed in Gate-in Processing.</p>
     </section>}
+    <DeletionDialog control={deletion}/>
     {optionalInvoice && <OptionalChargesModal invoiceId={optionalInvoice} onClose={() => setOptionalInvoice(null)} onSaved={() => {setOptionalInvoice(null);refresh();}}/>}
-  </div>;
+    </div>
+  </PageContainer>;
 }

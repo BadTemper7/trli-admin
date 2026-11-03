@@ -20,22 +20,22 @@ function RevenueFigure({ label, value, change, comparison }) {
   )
 }
 
-function RevenueOverview({ stats, revenueTrend }) {
+function RevenueOverview({ stats, revenueTrend, label }) {
 
   return (
-    <DashboardCard title="Revenue Overview" description="Last 7 days" className="h-full">
+    <DashboardCard title="Revenue Overview" description={label || "Selected period"} className="h-full">
       <div className="grid gap-5 sm:grid-cols-2">
         <RevenueFigure
-          label="Revenue Today"
+          label="Revenue for Selected Period"
           value={formatCurrency(stats.revenueToday)}
           change={stats.revenueTodayChange}
-          comparison="vs yesterday"
+          comparison="vs previous period"
         />
         <RevenueFigure
-          label="Revenue Month to Date"
-          value={formatCurrency(stats.revenueMonthToDate)}
+          label="Verified Payment Transactions"
+          value={String(stats.verifiedPayments||0)}
           change={stats.revenueMonthChange}
-          comparison="vs last month at this point"
+          comparison="vs previous period"
         />
       </div>
 

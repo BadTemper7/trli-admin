@@ -1,3 +1,4 @@
+import {useBulkDeletion,RowActions,SelectRecord,BulkDeleteToolbar,DeletionDialog,DeletionFeedback} from '@/components/deletion/DeletionControls.jsx';
 import { useEffect, useMemo, useState } from 'react'
 import {
   Building2,
@@ -279,6 +280,7 @@ export default function ClientVerificationPage() {
     }
   }
 
+  const deletion = useBulkDeletion(MODULES.CLIENT_VERIFICATION,{onDeleted:load});
   useEffect(() => {
     load()
   }, [])
@@ -434,10 +436,11 @@ export default function ClientVerificationPage() {
         <Button variant="outline" onClick={load} disabled={loading}><RefreshCw className={`mr-2 h-4 w-4 ${loading ? 'animate-spin' : ''}`} />Refresh</Button>
       </div>
 
-      <div className="overflow-x-auto rounded-2xl border bg-white shadow-sm">
+      <DeletionFeedback control={deletion}/><div className="overflow-x-auto rounded-2xl border bg-white shadow-sm"><BulkDeleteToolbar control={deletion} ids={filtered.map(r=>r.id)}/>
         <table className="w-full min-w-[960px] text-sm">
           <thead className="bg-slate-50 text-left text-xs font-bold uppercase tracking-wide text-slate-500">
             <tr>
+              {deletion.allowed&&<th className="px-3 py-3.5"/>}
               <th className="px-5 py-3.5">Company</th>
               <th className="px-5 py-3.5">Contact Person</th>
               <th className="px-5 py-3.5">Business Type</th>
@@ -450,6 +453,7 @@ export default function ClientVerificationPage() {
           <tbody>
             {filtered.map((row) => (
               <tr key={row.id} className="border-t transition hover:bg-slate-50/70">
+                {deletion.allowed&&<td className="px-3 py-3"><SelectRecord label={`Select ${row.companyName}`} checked={deletion.selected.includes(row.id)} onChange={v=>deletion.toggle(row.id,v)}/></td>}
                 <td className="px-5 py-4">
                   <p className="font-bold text-slate-900">{row.companyName}</p>
                   <p className="mt-1 max-w-xs truncate text-xs text-slate-500">{row.companyAddress || 'No address'}</p>
@@ -463,22 +467,21 @@ export default function ClientVerificationPage() {
                 <td className="px-5 py-4 text-slate-600">{formatDate(row.createdAt)}</td>
                 <td className="px-5 py-4"><StatusBadge status={row.verificationStatus} /></td>
                 <td className="px-5 py-4 text-right">
-                  <button onClick={() => openDetail(row.id)} className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 font-semibold text-primary hover:bg-blue-50">
-                    <Eye className="h-4 w-4" />Review
-                  </button>
+                  <RowActions items={[{label:'Review company',onClick:()=>openDetail(row.id)}]} canDelete={deletion.allowed} onDelete={()=>deletion.ask([row.id])}/>
                 </td>
               </tr>
             ))}
             {!loading && !filtered.length && (
-              <tr><td colSpan="7" className="px-5 py-16 text-center text-slate-500">No client verification applications found.</td></tr>
+              <tr><td colSpan={deletion.allowed?8:7} className="px-5 py-16 text-center text-slate-500">No client verification applications found.</td></tr>
             )}
             {loading && !rows.length && (
-              <tr><td colSpan="7" className="px-5 py-16 text-center text-slate-500">Loading registered clients...</td></tr>
+              <tr><td colSpan={deletion.allowed?8:7} className="px-5 py-16 text-center text-slate-500">Loading registered clients...</td></tr>
             )}
           </tbody>
         </table>
       </div>
 
+      <DeletionDialog control={deletion}/>
       {selectedId && (
         <DetailDrawer
           detail={detail}

@@ -49,16 +49,16 @@ function Legend() {
   )
 }
 
-function ContainerMovementChart({ data = [] }) {
+function ContainerMovementChart({ data = [], periodLabel = "Selected period" }) {
   return (
     <DashboardCard
       title="Container Movement"
-      description="Received vs released, last 7 days"
+      description={`Received vs released, ${periodLabel}`}
       action={<Legend />}
     >
       <div
         role="img"
-        aria-label="Grouped bar chart comparing containers received and released each day from October 19 to October 25"
+        aria-label={`Grouped bar chart comparing containers received and released during ${periodLabel}`}
         className="h-72 w-full min-w-0"
       >
         <ResponsiveContainer width="100%" height="100%">

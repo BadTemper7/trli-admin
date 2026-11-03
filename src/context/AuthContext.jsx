@@ -41,7 +41,7 @@ export function AuthProvider({ children }) {
     refresh()
   }, [refresh])
 
-  const userId = user?.id || null
+  const userId = user?._id || user?.id || null
   const mustChangePassword = Boolean(user?.mustChangePassword)
 
   useEffect(() => {

@@ -1,14 +1,21 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { adminSocket } from '@/lib/adminSocket.js'
 
 export function usePagedOperationsList(loader, socketEvents = [], { limit = 20 } = {}) {
+  const location = useLocation()
   const [rows, setRows] = useState([])
-  const [search, setSearch] = useState('')
+  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get('search') || '')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [page, setPage] = useState(1)
   const [pagination, setPagination] = useState({ page: 1, limit, total: 0, totalPages: 1 })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    const linkedSearch = new URLSearchParams(location.search).get('search')
+    if (linkedSearch !== null) setSearch(linkedSearch)
+  }, [location.search])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {

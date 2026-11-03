@@ -5,7 +5,7 @@ function TopCustomers({ data = [] }) {
   return (
     <DashboardCard
       title="Top Customers"
-      description="By container volume"
+      description="By verified payment revenue"
       className="h-full"
     >
       <ol className="divide-y divide-border">
@@ -29,7 +29,7 @@ function TopCustomers({ data = [] }) {
                 {formatCurrency(customer.revenue)}
               </span>
               <span className="block text-xs tabular-nums text-muted-foreground">
-                {formatNumber(customer.containers)} containers
+                {formatNumber(customer.containers)} verified payments
               </span>
             </span>
           </li>

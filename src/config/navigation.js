@@ -1,4 +1,4 @@
-import { BadgeCheck, ChartNoAxesCombined, CircleDollarSign, ClipboardList, CreditCard, LayoutDashboard, LogIn, LogOut, Package, PackageCheck, Truck, ReceiptText, Settings, Users, Warehouse } from 'lucide-react';
+import { BadgeCheck, ChartNoAxesCombined, CircleDollarSign, ClipboardList, CreditCard, LayoutDashboard, LogIn, LogOut, Package, PackageCheck, Truck, ReceiptText, Settings, Users, ScrollText, Warehouse } from 'lucide-react';
 import { MODULES } from '@/constants/permissions.js';
 
 export const HOME_PATH = '/dashboard';
@@ -13,6 +13,7 @@ export const navigation = [
     {title:'Release Container',path:'/release-container',icon:PackageCheck,module:MODULES.RELEASE_CONTAINER},
   ]},
   { section: 'Container Records', items: [
+    {title:'Container Tracking',path:'/container-tracking',icon:Package,module:MODULES.CONTAINER_TRACKING},
     {title:'Inventory',path:'/inventory',icon:Package,module:MODULES.INVENTORY},
     {title:'Forwarding',path:'/forwarding',icon:Truck,module:MODULES.FORWARDING},
   ]},
@@ -27,7 +28,7 @@ export const navigation = [
     {title:'User Management',path:'/user-management',icon:Users,module:MODULES.USER_MANAGEMENT},
   ]},
   { section: 'Analytics', items: [{title:'Reports Module',path:'/reports',icon:ChartNoAxesCombined,module:MODULES.REPORTS}] },
-  { section: 'System', items: [{title:'Settings',path:'/settings',icon:Settings,module:MODULES.SETTINGS}] },
+  { section: 'System', items: [{title:'Settings',path:'/settings',icon:Settings,module:MODULES.SETTINGS},{title:'Audit Logs',path:'/audit-logs',icon:ScrollText,module:MODULES.AUDIT_LOGS}] },
 ];
 
 export function firstAccessiblePath(user) {

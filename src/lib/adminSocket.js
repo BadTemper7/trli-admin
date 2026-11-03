@@ -8,6 +8,7 @@ const URL = import.meta.env.DEV ? window.location.origin : (
 
 export const adminSocket = io(URL, {
   autoConnect: false,
+  auth: { audience: 'ADMIN' },
   withCredentials: true,
   transports: ['websocket', 'polling'],
   tryAllTransports: true,

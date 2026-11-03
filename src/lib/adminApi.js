@@ -13,9 +13,10 @@ export async function adminRequest(path, options = {}) {
     .json()
     .catch(() => ({ success: false, message: "Invalid server response." }));
   if (!response.ok) {
-    const error = new Error(payload.message || "Request failed.");
+    const error = new Error(`${payload.message || "Request failed."}${payload.errorId ? ` (Error ID: ${payload.errorId})` : ''}`);
     error.status = response.status;
     error.code = payload.code;
+    error.errorId = payload.errorId;
     throw error;
   }
   return payload;
@@ -95,7 +96,10 @@ export const clientVerificationApi = {
 };
 
 export const analyticsApi = {
-  dashboard: () => adminRequest("/admin/dashboard"),
+  dashboard: (params = {}) => {
+    const query = new URLSearchParams(Object.entries(params).filter(([,v])=>v)).toString();
+    return adminRequest(`/admin/dashboard${query?`?${query}`:""}`);
+  },
   reports: (params = {}) => {
     const query = new URLSearchParams(
       Object.entries(params).filter(([, value]) => value),

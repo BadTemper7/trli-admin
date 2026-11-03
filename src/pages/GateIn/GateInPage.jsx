@@ -2,7 +2,7 @@ import { useState } from 'react'
 import OperationGuidance from '@/components/operations/OperationGuidance.jsx'
 import OptionalChargesModal from '@/components/invoices/OptionalChargesModal.jsx'
 import GateInPaymentReview from '@/components/operations/GateInPaymentReview.jsx'
-import { ClipboardCheck, CreditCard, LogIn, ShieldAlert, XCircle } from 'lucide-react'
+import { ClipboardCheck, CreditCard, Download, LogIn, ShieldAlert, XCircle } from 'lucide-react'
 import PageContainer from '@/components/layout/PageContainer.jsx'
 import PageHeader from '@/components/layout/PageHeader.jsx'
 import OperationDrawer from '@/components/operations/OperationDrawer.jsx'
@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button.jsx'
 import { Input } from '@/components/ui/input.jsx'
 
 import { operationsApi } from '@/lib/operationsApi.js'
+import {openAdminFile} from '@/lib/adminFiles.js'
 import { useAuth } from '@/context/AuthContext.jsx'
 import { MODULES, ACTIONS } from '@/constants/permissions.js'
 import { usePagedOperationsList } from '@/hooks/usePagedOperationsList.js'
@@ -160,7 +161,7 @@ function GateInPage() {
     {error && <ErrorBox text={error} />}
     <div className="mb-4 flex flex-wrap gap-2" role="group" aria-label="Gate-in task queues">{queueChoices.map(([value,label])=><button type="button" key={value} aria-pressed={queue===value} onClick={()=>setQueue(value)} className={`rounded-xl border px-3 py-2 text-xs font-bold ${queue===value?'border-primary bg-primary text-primary-foreground':'border-border bg-card text-foreground'}`}>{label} <span className="ml-1 opacity-75">{value==='ALL'?rows.length:rows.filter(row=>queueFor(row)===value).length}</span></button>)}</div>
     <p className="mb-3 text-xs text-muted-foreground">Queue counts and filters apply to the currently loaded page; use search and pagination to find more bookings.</p>
-    <OperationsTable
+    <OperationsTable deleteModule={MODULES.GATE_IN} onDeleted={load}
       rows={visibleRows}
       search={search}
       onSearch={setSearch}
@@ -190,6 +191,15 @@ function GateInPage() {
           <OperationStatus stage={selected.workflowStage} />
           <InspectionBadge status={inspectionStatus} />
         </div>
+
+        <section className="rounded-2xl border border-primary/15 bg-primary/5 p-4">
+          <h3 className="text-sm font-bold">Printable Gate-in documents</h3>
+          <p className="mt-1 text-xs text-muted-foreground">The Gate-in Pass becomes available only after successful inspection and confirmed physical entry. The Service Invoice can be downloaded earlier.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button type="button" variant="outline" disabled={!selected?.gateIn?.actualGateInAt || selected?.gateIn?.inspection?.status!=='ACCEPTED'} onClick={() => openAdminFile(`/admin/operations/gate-in/${selected.id}/pass`,true).catch(e=>setError(e.message))}><Download size={15}/> Download Gate-in Pass</Button>
+            <Button type="button" variant="outline" disabled={!selected?.gateInCharges?.invoiceId} onClick={() => openAdminFile(`/admin/operations/gate-in/${selected.id}/invoice`,true).catch(e=>setError(e.message))}><Download size={15}/> Download Service Invoice</Button>
+          </div>
+        </section>
 
         <section className="rounded-2xl border p-4">
           <div className="flex items-center justify-between"><h3 className="font-semibold">1. Online Payment Verification</h3><span className="font-bold">{formatMoney(totalDue)}</span></div>
