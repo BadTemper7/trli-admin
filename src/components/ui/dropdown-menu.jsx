@@ -1,10 +1,10 @@
-import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu"
+import * as DropdownMenuPrimitive from "@radix-ui/react-dropdown-menu";
 
-import { cn } from "@/lib/utils.js"
+import { cn } from "@/lib/utils.js";
 
-const DropdownMenu = DropdownMenuPrimitive.Root
-const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger
-const DropdownMenuGroup = DropdownMenuPrimitive.Group
+const DropdownMenu = DropdownMenuPrimitive.Root;
+const DropdownMenuTrigger = DropdownMenuPrimitive.Trigger;
+const DropdownMenuGroup = DropdownMenuPrimitive.Group;
 
 function DropdownMenuContent({ className, sideOffset = 8, ...props }) {
   return (
@@ -13,12 +13,12 @@ function DropdownMenuContent({ className, sideOffset = 8, ...props }) {
         sideOffset={sideOffset}
         className={cn(
           "z-50 min-w-56 overflow-hidden rounded-xl border border-border bg-surface p-1.5 text-foreground shadow-lg data-[state=closed]:animate-pop-out data-[state=open]:animate-pop-in",
-          className
+          className,
         )}
         {...props}
       />
     </DropdownMenuPrimitive.Portal>
-  )
+  );
 }
 
 function DropdownMenuItem({ className, destructive = false, ...props }) {
@@ -29,11 +29,11 @@ function DropdownMenuItem({ className, destructive = false, ...props }) {
         destructive
           ? "text-destructive data-[highlighted]:bg-danger-50"
           : "[&_svg]:text-muted-foreground",
-        className
+        className,
       )}
       {...props}
     />
-  )
+  );
 }
 
 function DropdownMenuLabel({ className, ...props }) {
@@ -42,7 +42,7 @@ function DropdownMenuLabel({ className, ...props }) {
       className={cn("px-2.5 py-2 text-sm font-semibold", className)}
       {...props}
     />
-  )
+  );
 }
 
 function DropdownMenuSeparator({ className, ...props }) {
@@ -51,15 +51,15 @@ function DropdownMenuSeparator({ className, ...props }) {
       className={cn("-mx-1.5 my-1.5 h-px bg-border", className)}
       {...props}
     />
-  )
+  );
 }
 
 export {
   DropdownMenu,
   DropdownMenuTrigger,
+  DropdownMenuItem,
   DropdownMenuGroup,
   DropdownMenuContent,
-  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
-}
+};

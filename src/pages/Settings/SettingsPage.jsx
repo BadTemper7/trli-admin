@@ -16,7 +16,7 @@ const emptyForm = {
   operatingHours: '24 hours daily',
   schedule: { openingTime:'00:00',closingTime:'24:00',operatingDays:[0,1,2,3,4,5,6],maxBookingsPerHour:4,active:true },
   overtime: { start:'18:00',end:'08:00',fee:0,active:true },
-  tax: {vatRate:12,vatInclusive:true},
+  tax: {vatRate:12,vatInclusive:false},
   shiftingFee:0,
   storageBilling:{rounding:'CALENDAR_DAYS'},
 }
@@ -180,7 +180,7 @@ export default function SettingsPage() {
               <p className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm font-semibold text-emerald-900">Active billing rule: inclusive Manila calendar dates (fixed). Midnight starts a new billable day.</p>
               <p className="text-xs text-muted-foreground">Quotes use the scheduled Gate-out date; the final storage duration uses actual physical release. Paid invoices are not silently recalculated.</p>
             </section>
-            <section className="space-y-4 rounded-xl border p-4"><h3 className="font-bold">Gate-in Shifting Fee & VAT</h3><div className="grid gap-3 sm:grid-cols-3"><label className="text-sm">Legacy fallback shifting fee (PHP)<input className="input mt-1" type="number" min="0" step="0.01" value={form.shiftingFee??0} onChange={e=>setForm(current=>({...current,shiftingFee:Number(e.target.value)}))} disabled={!editable||saving}/></label><label className="text-sm">VAT rate (%)<input className="input mt-1" type="number" min="0" max="100" step="0.01" value={form.tax?.vatRate??12} onChange={e=>nested('tax','vatRate',Number(e.target.value))} disabled={!editable||saving}/></label><label className="flex items-center gap-2 text-sm"><input type="checkbox" checked readOnly disabled/> All rates include VAT (required)</label></div><p className="text-xs text-muted-foreground">For size/classification-specific shifting prices use Rate Setup → Shifting Fee (Gate-in). A configured shifting rate overrides this legacy fallback amount; it is never charged twice. Storage defaults to calendar-date counting in Asia/Manila: each date touched counts as one day, even for a short stay crossing midnight.</p></section>
+            <section className="space-y-4 rounded-xl border p-4"><h3 className="font-bold">Gate-in Shifting Fee & VAT</h3><div className="grid gap-3 sm:grid-cols-3"><label className="text-sm">Legacy fallback shifting fee (PHP)<input className="input mt-1" type="number" min="0" step="0.01" value={form.shiftingFee??0} onChange={e=>setForm(current=>({...current,shiftingFee:Number(e.target.value)}))} disabled={!editable||saving}/></label><label className="text-sm">VAT rate (%)<input className="input mt-1" type="number" min="0" max="100" step="0.01" value={form.tax?.vatRate??12} onChange={e=>nested('tax','vatRate',Number(e.target.value))} disabled={!editable||saving}/></label><p className="rounded-lg bg-blue-50 p-3 text-sm text-blue-900">Configured rates exclude VAT. The system adds VAT only to VATable charges when generating new invoices.</p></div><p className="text-xs text-muted-foreground">For size/classification-specific shifting prices use Rate Setup → Shifting Fee (Gate-in). A configured shifting rate overrides this legacy fallback amount; it is never charged twice. VAT is added to all VATable base rates at the selected tax percentage; non-VATable charges remain unchanged. Storage defaults to calendar-date counting in Asia/Manila: each date touched counts as one day, even for a short stay crossing midnight.</p></section>
           </div>}
 
           {editable && !loading && (
